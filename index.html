@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新界喇沙中學 · 交通到站時間</title>
+<style>
+  :root{
+    --bg:#0d1220; --panel:#151c30; --panel2:#1a2340; --line:#26304f;
+    --txt:#e8edf8; --mut:#8b97b5; --dim:#5c6885;
+    --green:#2ecc71; --amber:#f5a623; --red:#e74c3c; --blue:#4f8df9;
+    --kmb:#c8161d; --gmb:#1a9c5a; --mtr:#0b5cad;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:"PingFang HK","Microsoft JhengHei","Noto Sans TC",-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+  .wrap{max-width:1200px;margin:0 auto;padding:16px 14px 40px}
+
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:14px 4px 12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+  .school{font-size:20px;font-weight:700;letter-spacing:.5px}
+  .school small{display:block;font-size:11px;color:var(--mut);font-weight:400;letter-spacing:.2px;margin-top:3px}
+  .clockbox{margin-left:auto;text-align:right}
+  .clock{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums}
+  .dateline{font-size:12px;color:var(--mut)}
+
+  .banner{background:linear-gradient(90deg,#12351f,#15233d 70%);border:1px solid #1f4a30;border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}
+  .banner .btitle{font-size:13px;color:#9fe8bc;font-weight:700}
+  .banner .bitem{font-size:14px;color:var(--txt)}
+  .banner .bitem b{font-size:20px;color:var(--green);font-variant-numeric:tabular-nums}
+  .banner .bnone{color:var(--mut);font-size:13px}
+
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+  .refresh-btn{background:var(--blue);border:none;color:#fff;font-size:14px;padding:8px 18px;border-radius:8px;cursor:pointer;font-weight:600}
+  .refresh-btn:disabled{opacity:.5;cursor:wait}
+  .status{font-size:12px;color:var(--mut)}
+  .status.err{color:var(--red)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .card-head{padding:11px 14px 9px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  .card-head h2{font-size:15px;line-height:1.35}
+  .meta{display:flex;gap:8px;align-items:center;margin-top:5px;flex-wrap:wrap}
+  .tag{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;color:#fff}
+  .tag.kmb{background:var(--kmb)} .tag.gmb{background:var(--gmb)} .tag.mtr{background:var(--mtr)}
+  .walk{font-size:11.5px;color:var(--mut)}
+  .card-body{padding:8px 14px 12px;flex:1}
+
+  .route-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed #202a47}
+  .route-row:last-child{border-bottom:none}
+  .rno{min-width:52px;text-align:center;font-weight:800;font-size:15px;padding:4px 6px;border-radius:7px;background:#0e1426;border:1px solid var(--line)}
+  .rno.kmb{color:#ff8a8a;border-color:#5a2226} .rno.gmb{color:#7ee2a8;border-color:#1f5136} .rno.mtr{color:#8fc0ff;border-color:#1e3a63}
+  .rinfo{flex:1;min-width:0}
+  .dest{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dirhint{font-size:11px;color:var(--dim);margin-top:2px}
+  .etas{display:flex;gap:7px;align-items:baseline}
+  .eta{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+  .eta small{font-size:11px;font-weight:500;color:var(--mut);margin-left:1px}
+  .eta.hot{color:var(--green)} .eta.soon{color:var(--amber)} .eta.cool{color:var(--txt)}
+  .eta.sched{opacity:.55;font-size:16px}
+  .rmk{font-size:11px;color:var(--dim);margin-top:3px;max-width:150px;text-align:right}
+  .nosvc{font-size:12px;color:var(--dim);padding:2px 0}
+  .loading,.carderr{color:var(--mut);font-size:12.5px;padding:10px 0}
+  .carderr{color:var(--red)}
+
+  .plat{font-size:11px;color:var(--mut);margin-top:2px}
+
+  footer{margin-top:26px;font-size:11.5px;color:var(--dim);line-height:1.7;border-top:1px solid var(--line);padding-top:12px}
+  footer a{color:var(--blue);text-decoration:none}
+
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .eta.hot{animation:pulse 1.6s ease-in-out infinite}
+  @media (max-width:420px){.clock{font-size:24px}.school{font-size:17px}.eta{font-size:19px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="school">新界喇沙中學 · 公共交通到站時間
+      <small>De La Salle Secondary School, N.T. — 上水金錢村 · 實時交通 Dashboard</small>
+    </div>
+    <div class="clockbox">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="dateline" id="dateline"></div>
+    </div>
+  </header>
+
+  <div class="banner">
+    <span class="btitle">🚏 最快前往上水站／上水市中心</span>
+    <span id="ss-summary" class="bnone">載入中…</span>
+  </div>
+
+  <div class="toolbar">
+    <button class="refresh-btn" id="refreshBtn" onclick="refreshAll()">🔄 立即刷新</button>
+    <span class="status" id="status">每 60 秒自動更新</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    資料來源（政府開放數據，每分鐘自動更新）：<br>
+    · 九巴／龍運巴士 — <a href="https://data.etabus.gov.hk/" target="_blank">data.etabus.gov.hk</a>（76K 線）<br>
+    · 專線小巴 — <a href="https://data.etagmb.gov.hk/" target="_blank">data.etagmb.gov.hk</a>（50A／50K／51K／51B 線）<br>
+    · 港鐵東鐵綫 — <a href="https://rt.data.gov.hk/" target="_blank">rt.data.gov.hk</a>（上水站 SHS）<br>
+    到站時間只供參考，實際班次受路況影響。「原定班次／未開出」表示按時間表推算，巴士尚未離開總站。步行時間以每分鐘 75 米估算。
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ================= 配置 ================= */
+const REFRESH_MS = 60000;
+
+// GMB route_id → 路線編號 及 方向資料（來自 data.etagmb.gov.hk 路線數據，2026-10 核對）
+const GMB_ROUTES = {
+  2005322:{code:"50A", dirs:{1:{o:"上水站",d:"古洞(南)"},2:{o:"古洞(南)",d:"上水站"}}},
+  2005323:{code:"50K", dirs:{1:{o:"上水站",d:"坑頭"},2:{o:"坑頭",d:"上水站"}}},
+  2005325:{code:"51K", dirs:{1:{o:"上水站",d:"河上鄉"},2:{o:"河上鄉",d:"上水站"}}},
+  2005327:{code:"51K", dirs:{1:{o:"上水站",d:"羅湖懲教所(循環線)"}}},
+  2005331:{code:"51B", dirs:{1:{o:"上水站",d:"料壆"},2:{o:"料壆",d:"上水站"}}},
+  2005333:{code:"51B", dirs:{1:{o:"馬草壟(信義新村)",d:"上水站"}}},
+  2010929:{code:"508", dirs:{1:{o:"古洞北福利服務綜合大樓",d:"上水站"},2:{o:"上水站",d:"古洞北福利服務綜合大樓"}}}
+};
+
+// 車站配置（距離為直線距離，已於 2026-10 用官方 API 座標核對）
+const STOPS = [
+  {id:"gmb-kamtsinrd", title:"金錢路 · 近金錢村（校門外）", walk:93, badge:"最近",
+   eps:[{kind:"gmb", sid:"20013007"}]},
+  {id:"kmb-nd581", title:"金錢 (ND581)", walk:190,
+   eps:[{kind:"kmb", sid:"BA7CB63D61CF127B"}]},
+  {id:"kmb-nd192", title:"金錢 (ND192)", walk:286,
+   eps:[{kind:"kmb", sid:"7B0FD0608D0C1A49"}]},
+  {id:"gmb-stpaul", title:"青山公路－古洞段 · 近沙爾德聖保祿女修會", walk:419,
+   eps:[{kind:"gmb", sid:"20013005"},{kind:"gmb", sid:"20014650"}]},
+  {id:"gmb-viso", title:"古洞路 · 近天巒", walk:556,
+   eps:[{kind:"gmb", sid:"20013006"}]},
+  {id:"mtr-shs", title:"港鐵上水站（東鐵綫）", walk:0, badge:"轉乘參考",
+   eps:[{kind:"mtr", line:"EAL", sta:"SHS"}]}
+];
+
+const MTR_STA = {ADM:"金鐘",EXC:"會展",HUH:"紅磡",MKK:"旺角東",KOT:"九龍塘",TAW:"大圍",
+  SHT:"沙田",FOT:"火炭",RAC:"馬場",UNI:"大學",TPO:"大埔墟",TWM:"太和",FAN:"粉嶺",
+  SHS:"上水",LOW:"羅湖",LMC:"落馬洲"};
+
+/* ================= 工具 ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtNow = () => new Date();
+
+function minsFromISO(iso){
+  if(!iso) return null;
+  const t = new Date(iso).getTime();
+  if(isNaN(t)) return null;
+  return Math.max(0, Math.round((t - Date.now())/60000));
+}
+function etaClass(m){ return m<=4?"hot":m<=9?"soon":"cool"; }
+function walkLabel(m){ return m>0 ? `🚶 約 ${Math.max(1,Math.round(m/75))} 分鐘（${m}米）` : ""; }
+
+async function getJSON(url, timeoutMs=12000){
+  const ctrl = new AbortController();
+  const timer = setTimeout(()=>ctrl.abort(), timeoutMs);
+  try{
+    const r = await fetch(url, {signal:ctrl.signal});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return await r.json();
+  } finally { clearTimeout(timer); }
+}
+
+/* ================= 資料整理：统一输出 rows =================
+   row = {rno, kind, dest, hint, etas:[{min, rmk, sched}], nosvc}
+============================================================ */
+function parseKMB(json){
+  // 同一 route+dir 的不同 service_type 會返回相同 ETA（見 API spec 備註）→ 按 route+dir 合併
+  const rows = new Map();
+  for(const d of (json.data||[])){
+    const key = d.route+"|"+d.dir;
+    if(!rows.has(key)) rows.set(key, {rno:d.route, kind:"kmb", dest:d.dest_tc||d.dest_en||"",
+      hint:"往 "+(d.dest_tc||""), etas:[], nosvc:null});
+    const row = rows.get(key);
+    if(d.eta){
+      const m = minsFromISO(d.eta);
+      const sched = /原定班次|Scheduled/.test(d.rmk_en||d.rmk_tc||"");
+      if(m!==null && !row.etas.some(e=>e.min===m && e.sched===sched))
+        row.etas.push({min:m, rmk:d.rmk_tc||"", sched});
+    } else if(d.rmk_tc && !row.nosvc){
+      row.nosvc = d.rmk_tc;
+    }
+  }
+  const out=[...rows.values()];
+  out.forEach(r=>r.etas.sort((a,b)=>a.min-b.min));
+  return out.filter(r=>r.etas.length||r.nosvc);
+}
+
+function parseGMB(json){
+  const rows=[];
+  for(const d of (json.data||[])){
+    if(!d.enabled) continue;
+    const info = GMB_ROUTES[d.route_id];
+    const code = info?info.code:("路線"+d.route_id);
+    const dir = info?(info.dirs[d.route_seq]||{}):{};
+    const dest = dir.d||"";
+    const etas=(d.eta||[]).map(e=>({min:e.diff, rmk:e.remarks_tc||"", sched:/未開出|Scheduled/.test(e.remarks_en||e.remarks_tc||"")}))
+      .filter(e=>typeof e.min==="number").sort((a,b)=>a.min-b.min);
+    if(etas.length) rows.push({rno:code, kind:"gmb", dest, hint:dir.o?("由 "+dir.o+" 開出"):"", etas, nosvc:null});
+  }
+  // 同一 route_id+route_seq 只出現一次；同編號不同支線（如 51B 料壆/馬草壟）保留各自顯示
+  // 循環線同一站柱會出現兩次（不同 stop_seq）→ 按 路線+目的地 合併並去重分鐘數
+  const byKey=new Map();
+  for(const r of rows){
+    const k=r.rno+(r.dest||"");
+    if(!byKey.has(k)) byKey.set(k,{...r, etas:[...r.etas]});
+    else{
+      const ex=byKey.get(k);
+      for(const e of r.etas){ if(!ex.etas.some(x=>x.min===e.min)) ex.etas.push(e); }
+    }
+  }
+  for(const r of byKey.values()) r.etas.sort((a,b)=>a.min-b.min).splice(3);
+  return [...byKey.values()];
+}
+
+function parseMTR(json){
+  const rows=[];
+  const st = json.data && json.data["EAL-SHS"];
+  if(!st) return rows;
+  for(const [dirKey, dirName] of [["UP","上行 · 往羅湖／落馬洲"],["DOWN","下行 · 往金鐘"]]){
+    const trains=(st[dirKey]||[]).filter(t=>t.valid==="Y").slice(0,3);
+    if(!trains.length) continue;
+    rows.push({rno:"🚇", kind:"mtr", dest:dirName, hint:"", nosvc:null,
+      etas:trains.map(t=>({min:parseInt(t.ttnt,10), rmk:(MTR_STA[t.dest]||t.dest)+" · "+t.plat+"號月台", sched:false, isMtr:true}))});
+  }
+  return rows;
+}
+
+/* ================= 渲染 ================= */
+function etaHTML(e){
+  if(e.isMtr){
+    return `<div style="text-align:center"><div class="eta ${etaClass(e.min)}">${e.min}<small>分</small></div>
+      <div class="plat">${esc(e.rmk)}</div></div>`;
+  }
+  const cls = e.sched ? "eta sched" : "eta "+etaClass(e.min);
+  const shown = e.min<1 ? "將到" : e.min;
+  return `<div style="text-align:center"><div class="${cls}">${shown}${e.min<1?"":"<small>分</small>"}</div>
+    ${e.rmk?`<div class="plat">${esc(e.rmk)}</div>`:""}</div>`;
+}
+
+function rowHTML(r){
+  if(r.nosvc && !r.etas.length){
+    return `<div class="route-row"><div class="rno ${r.kind}">${esc(r.rno)}</div>
+      <div class="rinfo"><div class="dest">${esc(r.dest)}</div><div class="nosvc">⏸ ${esc(r.nosvc)}</div></div></div>`;
+  }
+  return `<div class="route-row">
+    <div class="rno ${r.kind}">${esc(r.rno)}</div>
+    <div class="rinfo"><div class="dest">${esc(r.dest)}</div>
+      ${r.hint?`<div class="dirhint">${esc(r.hint)}</div>`:""}</div>
+    <div class="etas">${r.etas.slice(0,3).map(etaHTML).join("")}</div>
+  </div>`;
+}
+
+function cardShell(stop){
+  return `<div class="card" id="card-${stop.id}">
+    <div class="card-head">
+      <h2>${esc(stop.title)} ${stop.badge?`<span class="tag gmb">${stop.badge}</span>`:""}</h2>
+      <div class="meta">
+        ${stop.eps.map(ep=>`<span class="tag ${ep.kind}">${ep.kind==="kmb"?"九巴":ep.kind==="gmb"?"專線小巴":"港鐵"}</span>`).join("")}
+        ${stop.walk?`<span class="walk">${walkLabel(stop.walk)}</span>`:""}
+      </div>
+    </div>
+    <div class="card-body"><div class="loading">載入中…</div></div>
+  </div>`;
+}
+
+function renderRows(stop, rows, err){
+  const body = document.querySelector(`#card-${stop.id} .card-body`);
+  if(!body) return;
+  if(err && !rows.length){ body.innerHTML = `<div class="carderr">⚠ 暫時無法取得資料（${esc(err)}）</div>`; return; }
+  if(!rows.length){ body.innerHTML = `<div class="loading">暫無班次資料</div>`; return; }
+  rows.sort((a,b)=>{
+    const am=a.etas[0]?a.etas[0].min:999, bm=b.etas[0]?b.etas[0].min:999;
+    return am-bm;
+  });
+  body.innerHTML = rows.map(rowHTML).join("");
+}
+
+/* ================= 抓取 ================= */
+let ssBest = [];  // 前往上水的選項
+
+async function fetchStop(stop){
+  const results=[]; let lastErr=null;
+  for(const ep of stop.eps){
+    try{
+      let rows=[];
+      if(ep.kind==="kmb"){
+        rows = parseKMB(await getJSON(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${ep.sid}/`));
+      } else if(ep.kind==="gmb"){
+        rows = parseGMB(await getJSON(`https://data.etagmb.gov.hk/eta/stop/${ep.sid}`));
+      } else if(ep.kind==="mtr"){
+        rows = parseMTR(await getJSON(`https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=${ep.line}&sta=${ep.sta}`));
+      }
+      results.push(...rows);
+    }catch(e){ lastErr = e.message || String(e); }
+  }
+  // 合併同一卡內相同路線+目的地（不同站柱），並去重相同分鐘數
+  const merged=new Map();
+  for(const r of results){
+    const k=r.kind+r.rno+(r.dest||"");
+    if(!merged.has(k)) merged.set(k,{...r, etas:[...r.etas]});
+    else{
+      const ex=merged.get(k);
+      for(const e of r.etas){
+        if(!ex.etas.some(x=>x.min===e.min)) ex.etas.push(e);
+      }
+      if(!ex.dest) ex.dest=r.dest;
+    }
+  }
+  for(const r of merged.values()) r.etas.sort((a,b)=>a.min-b.min);
+  renderRows(stop, [...merged.values()], lastErr);
+  return {stop, rows:[...merged.values()], err:lastErr};
+}
+
+function updateBanner(all){
+  // 收集所有「往上水」班次：GMB dest 含 上水；KMB dest 含 上水
+  const cands=[];
+  for(const {stop, rows} of all){
+    if(stop.id==="mtr-shs") continue;
+    for(const r of rows){
+      if(/上水/.test(r.dest||"") && r.etas.length){
+        const e=r.etas[0];
+        cands.push({rno:r.rno, min:e.min, walk:stop.walk, title:stop.title, sched:e.sched, kind:r.kind});
+      }
+    }
+  }
+  const el=$("#ss-summary");
+  if(!cands.length){ el.className="bnone"; el.textContent="暫無班次資料"; return; }
+  cands.sort((a,b)=>(a.min + a.walk/75) - (b.min + b.walk/75));
+  const top=cands.slice(0,3);
+  el.className="bitem";
+  el.innerHTML = top.map(c=>
+    `${c.kind==="kmb"?"🚌":"🚐"} <b>${c.rno}</b> ${c.min}分鐘到站（${esc(c.title.split("（")[0].split(" · ")[0])}，行${Math.max(1,Math.round(c.walk/75))}分鐘）${c.sched?"（原定班次）":""}`
+  ).join("　｜　");
+}
+
+async function refreshAll(){
+  const btn=$("#refreshBtn"); btn.disabled=true;
+  $("#status").className="status"; $("#status").textContent="更新中…";
+  const t0=Date.now();
+  try{
+    const all = await Promise.all(STOPS.map(fetchStop));
+    updateBanner(all);
+    const errs=all.filter(a=>a.err);
+    $("#status").className = "status"+(errs.length===STOPS.length?" err":"");
+    $("#status").textContent = `上次更新：${new Date().toLocaleTimeString("zh-HK",{hour12:false})}` +
+      (errs.length?`（${errs.length} 個站暫時取得失敗，稍後自動重試）`:"");
+  }catch(e){
+    $("#status").className="status err"; $("#status").textContent="更新失敗："+(e.message||e);
+  }
+  btn.disabled=false;
+}
+
+/* ================= 時鐘 & 啟動 ================= */
+function tickClock(){
+  const n=new Date();
+  $("#clock").textContent = n.toLocaleTimeString("zh-HK",{hour12:false});
+  const wd=["日","一","二","三","四","五","六"][n.getDay()];
+  $("#dateline").textContent = `${n.getFullYear()}年${n.getMonth()+1}月${n.getDate()}日 星期${wd}`;
+}
+
+function boot(){
+  $("#grid").innerHTML = STOPS.map(cardShell).join("");
+  tickClock(); setInterval(tickClock,1000);
+  refreshAll();
+  setInterval(refreshAll, REFRESH_MS);
+}
+boot();
+</script>
+</body>
+</html>
